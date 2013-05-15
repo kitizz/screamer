@@ -30,17 +30,16 @@
 class Util
 {
 public:
-    enum ResetType { RTS, DTR };
-
     static QString int2hex(int i);
 
+    static QString byte2hex(QByteArray bytes);
     static QString byte2hex(QByteArray byte, int start, int length);
 
     static QString string2hex(QString s);
 
     static QString string2decimal(QString s);
 
-    static void resetMicro(QSerialPort port, ResetType resetType, Settings *settings);
+    static void resetMicro(QSerialPort port, Settings *settings);
 
     static QList<QSerialPortInfo> getAvailablePorts();
 

@@ -18,7 +18,8 @@ SOURCES += main.cpp \
     programmer.cpp \
     util.cpp \
     settings.cpp \
-    serial.cpp
+    serial.cpp \
+    terminal.cpp
 
 # Installation path
 # target.path =
@@ -31,4 +32,5 @@ HEADERS += \
     programmer.h \
     util.h \
     settings.h \
-    serial.h
+    serial.h \
+    terminal.h

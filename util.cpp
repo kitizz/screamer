@@ -20,6 +20,15 @@ QString Util::int2hex(int i)
     return result;
 }
 
+QString Util::byte2hex(QByteArray bytes)
+{
+    QString result;
+    foreach (char b, bytes)
+        result.append(" " + int2hex(byte));
+
+    return result;
+}
+
 QString Util::byte2hex(QByteArray byte, int start, int length)
 {
     QString result;
@@ -49,21 +58,21 @@ QString Util::string2decimal(QString s)
     return result;
 }
 
-void Util::resetMicro(QSerialPort port, Util::ResetType resetType, Settings *settings)
+void Util::resetMicro(QSerialPort port, Settings *settings)
 {
-    switch(resetType) {
-    case Util::RTS:
+    switch(settings->resetType()) {
+    case Settings::RTS:
         port.setRequestToSend(true);
         QThread::msleep(10);
-        port.setDataTerminalReady(false);
+        port.setRequestToSend(false);
         if (settings->logDownload())
             settings->writeLog("-- Reset RTS\n");
         break;
 
-    case Util::DTR:
+    case Settings::DTR:
         port.setDataTerminalReady(true);
         QThread::msleep(10);
-        port.setRequestToSend(false);
+        port.setDataTerminalReady(false);
         if (settings->logDownload())
             settings->writeLog("-- Reset DTR\n");
         break;

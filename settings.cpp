@@ -61,6 +61,11 @@ void Settings::writeLog(QString log)
     m_log.append(log + " ");
 }
 
+void Settings::writeLogLn(QString log)
+{
+    m_log.append(log + "\n");
+}
+
 void Settings::setSettingsFile(QUrl arg)
 {
     if (m_settingsFile == arg) return;
@@ -113,13 +118,13 @@ void Settings::setFrequency(int arg)
     emit frequencyChanged(arg);
 }
 
-int Settings::chip() const
+Settings::Chip Settings::chip() const
 {
     return m_chip;
 }
 
 
-void Settings::setChip(int arg)
+void Settings::setChip(Chip arg)
 {
     if (m_chip == arg) return;
     m_chip = arg;
@@ -178,17 +183,17 @@ void Settings::setStopBits(QSerialPort::StopBits arg)
     emit stopBitsChanged(arg);
 }
 
-Serial::TerminalCharacters Settings::terminaCharacters() const
+Serial::TerminalCharacters Settings::terminalCharacters() const
 {
     return m_terminaCharacters;
 }
 
 
-void Settings::setTerminaCharacters(Serial::TerminalCharacters arg)
+void Settings::setTerminalCharacters(Serial::TerminalCharacters arg)
 {
     if (m_terminaCharacters == arg) return;
     m_terminaCharacters = arg;
-    emit terminaCharactersChanged(arg);
+    emit terminalCharactersChanged(arg);
 }
 
 bool Settings::echo() const
@@ -254,4 +259,30 @@ void Settings::setHexFiles(QStringList arg)
     if (m_hexFiles == arg) return;
     m_hexFiles = arg;
     emit hexFilesChanged(arg);
+}
+
+QUrl Settings::hexFile() const
+{
+    return m_hexFile;
+}
+
+
+void Settings::setHexFile(QUrl arg)
+{
+    if (m_hexFile == arg) return;
+    m_hexFile = arg;
+    emit hexFileChanged(arg);
+}
+
+Settings::ResetType Settings::resetType() const
+{
+    return m_resetType;
+}
+
+
+void Settings::setResetType(Settings::ResetType arg)
+{
+    if (m_resetType == arg) return;
+    m_resetType = arg;
+    emit resetTypeChanged(arg);
 }

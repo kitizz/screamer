@@ -9,6 +9,7 @@
 
 Settings::Settings(QObject *parent) :
     QObject(parent),
+    m_saving(false),
     m_settingsFile("settings.txt"),
     m_log(QString()),
     m_selectedPort(0)
@@ -34,7 +35,25 @@ Settings::Settings(QObject *parent) :
         save();
     }
 
+    connect(this, &Settings::portChanged, this, &Settings::changed);
+    connect(this, &Settings::baudProgramChanged, this, &Settings::changed);
+    connect(this, &Settings::frequencyChanged, this, &Settings::changed);
+    connect(this, &Settings::chipChanged, this, &Settings::changed);
+
+    connect(this, &Settings::baudTerminalChanged, this, &Settings::changed);
+    connect(this, &Settings::dataBitsChanged, this, &Settings::changed);
+    connect(this, &Settings::parityChanged, this, &Settings::changed);
+    connect(this, &Settings::stopBitsChanged, this, &Settings::changed);
     connect(this, &Settings::resetTypeChanged, this, &Settings::changed);
+    connect(this, &Settings::terminalCharactersChanged, this, &Settings::changed);
+    connect(this, &Settings::echoChanged, this, &Settings::changed);
+    connect(this, &Settings::autoOpenTerminalChanged, this, &Settings::changed);
+    connect(this, &Settings::logDownloadChanged, this, &Settings::changed);
+    connect(this, &Settings::wrapTerminalChanged, this, &Settings::changed);
+
+    connect(this, &Settings::hexFileChanged, this, &Settings::changed);
+    connect(this, &Settings::hexFilesChanged, this, &Settings::changed);
+
 
     connect(this, &Settings::changed, this, &Settings::save);
 }
@@ -48,7 +67,7 @@ bool Settings::load()
     }
 
     QByteArray data = file.readAll();
-    QJsonDocument doc = QJsonDocument::fromBinaryData(data);
+    QJsonDocument doc = QJsonDocument::fromJson(data);
     if (!doc.isObject()) {
         qWarning() << "Settings File in unexpected format. Unable to load settings.";
         file.close();
@@ -64,6 +83,9 @@ bool Settings::load()
 
 void Settings::save()
 {
+    if (m_saving) return;
+    m_saving = true;
+
     QStringList ignore;
     ignore << "objectName" << "selectedPort";
     QVariantMap map = Util::qobject2qvariant(this, ignore);
@@ -78,13 +100,12 @@ void Settings::save()
     }
 
     QTextStream out(&file);
-    int size;
-    out << doc.rawData(&size);
+    out << doc.toJson();
     out.flush();
 
     file.close();
 
-    return;
+    m_saving = false;
 }
 
 void Settings::writeLog(QString log)

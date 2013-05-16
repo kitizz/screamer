@@ -132,6 +132,7 @@ public slots:
     Q_INVOKABLE void save();
 
 private:
+    bool m_saving;
     QUrl m_settingsFile;
     QString m_log;
     

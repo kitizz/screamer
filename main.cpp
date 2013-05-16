@@ -4,12 +4,14 @@
 
 #include "util.h"
 #include "settings.h"
+#include <QSerialPort>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
     qmlRegisterType<Settings>("Screamer", 1,0, "Settings");
+    qmlRegisterType<QSerialPort>("Screamer", 1,0, "Serial");
 
     QQmlEngine engine;
     QQmlComponent component(&engine);

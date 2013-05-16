@@ -42,27 +42,54 @@ Tab {
                     id: comboBaud
                     labelText: "Baude Rate |"
                     height: settingsPane.comboHeight
+                    combo.model: ListModel {
+                        id: baudModel
+                        ListElement { text: "1200"; value: Serial.Baud1200 }
+                        ListElement { text: "2400"; value: Serial.Baud2400 }
+                        ListElement { text: "4800"; value: Serial.Baud4800 }
+                        ListElement { text: "9600"; value: Serial.Baud9600 }
+                        ListElement { text: "19200"; value: Serial.Baud19200 }
+                        ListElement { text: "38400"; value: Serial.Baud38400 }
+                        ListElement { text: "57600"; value: Serial.Baud57600 }
+                        ListElement { text: "115200"; value: Serial.Baud115200 }
+                    }
+
+                    value: settings.baudProgram
+                    combo.onCurrentIndexChanged: {
+                        settings.baudProgram = baudModel.get(combo.currentIndex).value
+                    }
                 }
 
                 LabelCombo {
                     id: comboChip
                     labelText: "Chip |"
                     height: settingsPane.comboHeight
+                    combo.model: ListModel {
+                        id: chipModel
+                        ListElement { text: "Atmega16"; value: Settings.Atmega168 }
+                        ListElement { text: "Atmega32"; value: Settings.Atmega328 }
+                    }
+
+                    value: settings.chip
+                    combo.onCurrentIndexChanged: {
+                        settings.chip = chipModel.get(combo.currentIndex).value
+                    }
                 }
 
                 LabelCombo {
                     id: comboReset
                     labelText: "Reset Type |"
                     height: settingsPane.comboHeight
-                    property list<QtObject> mdl: [
-                        ComboElement { text: "RTS"; value: settings.RTS },
-                        ComboElement { text: "DTR"; value: settings.DTR }
-                    ]
-                    combo.model: mdl
+                    combo.model: ListModel {
+                        id: resetModel
+                        ListElement { text: "RTS"; value: Settings.RTS }
+                        ListElement { text: "DTR"; value: Settings.DTR }
+                    }
+
+                    value: settings.resetType
 
                     combo.onCurrentIndexChanged: {
-                        console.log("ResetCombo:", mdl[combo.currentIndex].text)
-                        settings.resetType = mdl[combo.currentIndex].value
+                        settings.resetType = resetModel.get(combo.currentIndex).value
                     }
                 }
 
@@ -72,12 +99,18 @@ Tab {
                     id: autoOpenTerminal
                     text: "Open Terminal"
                     anchors.horizontalCenter: parent.horizontalCenter
+                    property bool value: settings.autoOpenTerminal
+                    onValueChanged: checked = value
+                    onCheckedChanged: settings.autoOpenTerminal = checked
                 }
 
                 CheckBox {
                     id: logDownload
                     text: "Log Download"
                     anchors.horizontalCenter: parent.horizontalCenter
+                    property bool value: settings.logDownload
+                    onValueChanged: checked = value
+                    onCheckedChanged: settings.logDownload = checked
                 }
             }
 

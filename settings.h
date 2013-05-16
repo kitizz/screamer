@@ -2,6 +2,7 @@
 #define SETTINGS_H
 
 #include <QObject>
+#include <QStringList>
 #include <QSerialPort>
 #include <QUrl>
 #include "serial.h"
@@ -11,10 +12,11 @@ class Settings : public QObject
     Q_OBJECT
     Q_PROPERTY(QUrl settingsFile READ settingsFile WRITE setSettingsFile NOTIFY settingsFileChanged)
     Q_PROPERTY(QString port READ port WRITE setPort NOTIFY portChanged)
-    Q_PROPERTY(int baudProgram READ baudProgram WRITE setBaudProgram NOTIFY baudProgramChanged)
+    Q_PROPERTY(QSerialPort::BaudRate baudProgram READ baudProgram WRITE setBaudProgram NOTIFY baudProgramChanged)
     Q_PROPERTY(int frequency READ frequency WRITE setFrequency NOTIFY frequencyChanged)
     Q_PROPERTY(Chip chip READ chip WRITE setChip NOTIFY chipChanged)
 
+    Q_PROPERTY(QSerialPort *selectedPort READ selectedPort WRITE setSelectedPort NOTIFY selectedPortChanged)
     Q_PROPERTY(QSerialPort::BaudRate baudTerminal READ baudTerminal WRITE setBaudTerminal NOTIFY baudTerminalChanged)
     Q_PROPERTY(QSerialPort::DataBits dataBits READ dataBits WRITE setDataBits NOTIFY dataBitsChanged)
     Q_PROPERTY(QSerialPort::Parity parity READ parity WRITE setParity NOTIFY parityChanged)
@@ -39,8 +41,8 @@ public:
 
     explicit Settings(QObject *parent = 0);
 
-    Q_INVOKABLE void load();
-    Q_INVOKABLE void save();
+    Q_INVOKABLE bool load();
+
 
     Q_INVOKABLE void writeLog(QString log);
     Q_INVOKABLE void writeLogLn(QString log);
@@ -51,8 +53,8 @@ public:
     QString port() const;
     void setPort(QString arg);
 
-    int baudProgram() const;
-    void setBaudProgram(int arg);
+    QSerialPort::BaudRate baudProgram() const;
+    void setBaudProgram(QSerialPort::BaudRate arg);
 
     int frequency() const;
     void setFrequency(int arg);
@@ -72,8 +74,8 @@ public:
     QSerialPort::StopBits stopBits() const;
     void setStopBits(QSerialPort::StopBits arg);
 
-    Serial::TerminalCharacters terminalCharacters() const;
-    void setTerminalCharacters(Serial::TerminalCharacters arg);
+    Settings::TerminalCharacters terminalCharacters() const;
+    void setTerminalCharacters(Settings::TerminalCharacters arg);
 
     bool echo() const;
     void setEcho(bool arg);
@@ -96,7 +98,14 @@ public:
     ResetType resetType() const;
     void setResetType(ResetType arg);
 
+    QSerialPort *selectedPort() const;
+    void setSelectedPort(QSerialPort *arg);
+
+    Q_INVOKABLE void setupPort(QSerialPort *port);
+
 signals:
+    void changed();
+
     void settingsFileChanged(QUrl arg);
     void portChanged(QString arg);
     void baudProgramChanged(int arg);
@@ -108,32 +117,33 @@ signals:
     void parityChanged(QSerialPort::Parity arg);
     void stopBitsChanged(QSerialPort::StopBits arg);
 
-    void terminalCharactersChanged(Serial::TerminalCharacters arg);
+    void terminalCharactersChanged(Settings::TerminalCharacters arg);
     void echoChanged(bool arg);
     void autoOpenTerminalChanged(bool arg);
     void logDownloadChanged(bool arg);
     void wrapTerminalChanged(bool arg);
     void hexFilesChanged(QStringList arg);
-
     void hexFileChanged(QUrl arg);
-
     void resetTypeChanged(ResetType arg);
 
+    void selectedPortChanged(QSerialPort *arg);
+
 public slots:
+    Q_INVOKABLE void save();
 
 private:
     QUrl m_settingsFile;
     QString m_log;
     
     QString m_port;
-    int m_baudProgram;
+    QSerialPort::BaudRate m_baudProgram;
     int m_frequency;
     Chip m_chip;
     QSerialPort::BaudRate m_baudTerminal;
     QSerialPort::DataBits m_dataBits;
     QSerialPort::Parity m_parity;
     QSerialPort::StopBits m_stopBits;
-    Serial::TerminalCharacters m_terminaCharacters;
+    Settings::TerminalCharacters m_terminalCharacters;
     bool m_echo;
     bool m_autoOpenTerminal;
     bool m_logDownload;
@@ -141,6 +151,7 @@ private:
     QStringList m_hexFiles;
     QUrl m_hexFile;
     ResetType m_resetType;
+    QSerialPort * m_selectedPort;
 };
 
 #endif // SETTINGS_H

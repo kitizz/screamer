@@ -1,16 +1,19 @@
-import QtQuick 2.0
+import QtQuick 2.1
+import QtQuick.Controls 1.0
+import Screamer 1.0
 
-Rectangle {
-    width: 360
-    height: 360
-    Text {
-        text: qsTr("Hello World")
-        anchors.centerIn: parent
+ApplicationWindow {
+    width: 900
+    height: 600
+
+    Settings {
+        id: settings
     }
-    MouseArea {
+
+    TabView {
+        id: tabView
         anchors.fill: parent
-        onClicked: {
-            Qt.quit();
-        }
+        ProgrammerPanel { settings: settings }
+        TerminalPanel { settings: settings }
     }
 }

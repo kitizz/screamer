@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QSerialPort>
+#include <QByteArray>
 #include "settings.h"
 
 
@@ -22,11 +23,10 @@ public:
     enum Status { Idle, Connecting, Connected, Programming, Failure, Error };
     explicit Programmer(QObject *parent = 0);
 
-    Q_INVOKABLE void programMicro(QSerialPort port, Settings *settings);
+    Q_INVOKABLE void programMicro(QSerialPort *port, Settings *settings);
 
-    bool startProgramMode(const QSerialPort &port, Settings *settings);
-    bool sendProgram(const QSerialPort &port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings);
-    qint64 writeBlock(QSerialPort port, qint64 start, qint64 size);
+    bool startProgramMode(QSerialPort *port, Settings *settings);
+    bool sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings);
     bool loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, int *endAddress, Settings *settings);
     
     bool isProgramming() const;

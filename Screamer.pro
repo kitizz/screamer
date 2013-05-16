@@ -3,7 +3,7 @@ folder_01.source = qml/Screamer
 folder_01.target = qml
 DEPLOYMENTFOLDERS = folder_01
 
-QT += serialport
+QT += serialport qml quick widgets
 
 # Additional import path used to resolve QML modules in Creator's code model
 QML_IMPORT_PATH =
@@ -34,3 +34,5 @@ HEADERS += \
     settings.h \
     serial.h \
     terminal.h
+
+OTHER_FILES +=

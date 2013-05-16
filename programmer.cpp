@@ -1,5 +1,6 @@
 #include "programmer.h"
 
+#include <QDebug>
 #include <QFile>
 #include <QThread>
 #include <QTextStream>
@@ -10,40 +11,29 @@
 #define SIZE_ATMEGA328 32768
 #define SIZE_ATMEGA168 16384
 
-#define SLAVE_READY     ((char)0x05)
-#define LOADMODE_START  ((char)0x06)
-#define DATABLOCK_SUCCESS  ((char)0x54)
-#define DATABLOCK_FAILURE  ((char)0x07)
+char slave_ready = (char)0x05;
+char loadmode_start = (char)0x06;
+char datablock_success = (char)0x54;
+char datablock_failure = (char)0x07;
 
 Programmer::Programmer(QObject *parent) :
     QObject(parent),
     m_isProgramming(false),
-    m_fileBuffer(QByteArray(MAX_MEM_SIZE)), // TODO: Perhaps have this as a constant somewhere?
     m_stopProgramming(false),
+    m_fileBuffer(QByteArray(MAX_MEM_SIZE, 0xFF)), // TODO: Perhaps have this as a constant somewhere?
     m_startAddress(-1),
     m_endAddress(MAX_MEM_SIZE),
     m_resends(0)
 {
 }
 
-void Programmer::programMicro(QSerialPort port, Settings *settings)
+void Programmer::programMicro(QSerialPort *port, Settings *settings)
 {
     setStatus(Idle);
 
     setIsProgramming(true);
 
-    int pageSize;		// For ATmega168, we have to load 128 bytes at a time (program full page). Document: AVR095
-    int memoryAddressHigh;
-    int memoryAddressLow;
-    int checkSum;
-    int lastAddress;
-    int currentAddress;
     QString currentFile;
-    int resend = 0;
-
-//    byte[] buffer = new byte[10];
-    bool success = false, badfile = true;
-    int answer;
     QString filename;
 
     switch (settings->chip()) {
@@ -64,14 +54,14 @@ void Programmer::programMicro(QSerialPort port, Settings *settings)
     // Set the reset type...
     switch (settings->resetType()) {
     case Settings::RTS:
-        port.setRequestToSend(false);
+        port->setRequestToSend(false);
         break;
     case Settings::DTR:
-        port.setDataTerminalReady(false);
+        port->setDataTerminalReady(false);
         break;
     }
 
-    port.open(QSerialPort::ReadWrite);
+    port->open(QSerialPort::ReadWrite);
     setStatus(Connecting);
 
     // Enter programming mode...
@@ -86,14 +76,14 @@ void Programmer::programMicro(QSerialPort port, Settings *settings)
         return;
     }
 
-    if (port.isOpen()) port.close();
+    if (port->isOpen()) port->close();
     setStatus(Idle);
     Util::resetMicro(port, settings);
 
 
 }
 
-bool Programmer::startProgramMode(const QSerialPort &port, Settings *settings)
+bool Programmer::startProgramMode(QSerialPort *port, Settings *settings)
 {
     settings->writeLogLn("Sending Chip into Program Mode...");
     setStatusText("Waiting for target chip to broadcast boot.");
@@ -106,32 +96,33 @@ bool Programmer::startProgramMode(const QSerialPort &port, Settings *settings)
             settings->writeLogLn("Programming cancelled before chip entered programming mode.");
             return false;
         }
-        if (port.bytesAvailable() == 0) {
+        if (port->bytesAvailable() == 0) {
             QThread::msleep(50);
             continue;
         }
 
-        QByteArray response = port.readAll();
+        QByteArray response = port->readAll();
         settings->writeLogLn("<-" + Util::byte2hex(response));
-        if (response.indexOf(SLAVE_READY) >= 0) {
+        if (response.indexOf(slave_ready) >= 0) {
             settings->writeLogLn("Received Broadcast!");
             break; // We have a winner!
         }
     }
 
     // Now put the chip into program mode
-    port.write(LOADMODE_START, 1);
-    settings->writeLogLn("->" + LOADMODE_START);
+    port->write(&loadmode_start, 1);
+    settings->writeLogLn("->" + loadmode_start);
 
     setStatusText("Load Mode Command Sent");
+    return true;
 }
 
-bool Programmer::sendProgram(const QSerialPort &port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings)
+bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings)
 {
     int currentAddress = startAddress;
     int blockSize = 0;
     int pageSize;
-    QByteArray header(4);
+    QByteArray header(4, 0);
 
     switch (settings->chip()) {
     case Settings::Atmega168:
@@ -141,7 +132,7 @@ bool Programmer::sendProgram(const QSerialPort &port, const QByteArray &fileBuff
 
     while (currentAddress <= endAddress) {
 
-        while (port.bytesAvailable() == 0) {
+        while (port->bytesAvailable() == 0) {
             QThread::msleep(10);
             if (m_stopProgramming) {
                 break;
@@ -154,12 +145,12 @@ bool Programmer::sendProgram(const QSerialPort &port, const QByteArray &fileBuff
         }
 
         char response;
-        port.read(&response, 1);
-        settings->writeLogLn("<-" + int2hex(response));
+        port->read(&response, 1);
+        settings->writeLogLn("<-" + Util::int2hex((int)response));
 
-        if (response == DATABLOCK_SUCCESS) {
+        if (response == datablock_success) {
             setStatus(Programming);
-        } else if (response == DATABLOCK_FAILURE) {
+        } else if (response == datablock_failure) {
             if (blockSize == 0) {
                 QString msg = "Error : Incorrect initial response from target IC. Programming is incomplete and will now halt.";
                 settings->writeLogLn(msg);
@@ -171,6 +162,7 @@ bool Programmer::sendProgram(const QSerialPort &port, const QByteArray &fileBuff
             currentAddress = currentAddress - blockSize;
             resendsIncrement();
         } else {
+            // TODO: THis is probably not necessarilly the best
             QString msg = "Error : Incorrect response from target IC. Programming is incomplete and will now halt.";
             settings->writeLogLn(msg);
             setStatusText(msg);
@@ -201,37 +193,33 @@ bool Programmer::sendProgram(const QSerialPort &port, const QByteArray &fileBuff
         checkSum = 256 - checkSum;
 
         // Send Start character
-        port.write(":", 1);
+        port->write(":", 1);
 
         // Send record header
         header[0] = (char)blockSize;
         header[1] = (char)memAddressLow;
         header[2] = (char)memAddressHigh;
         header[3] = (char)checkSum;
-        port.write(header);
+        port->write(header);
 
         // Send the record data
-        port.write(fileBuffer.mid(currentAddress, blockSize), blockSize);
+        port->write(fileBuffer.mid(currentAddress, blockSize), blockSize);
 
-        QString msg;
+        QTextStream msg;
         msg << "-> :" << Util::byte2hex(header) << "[+"
             << blockSize << " bytes of data]";
-        settings->writeLogLn(msg);
+        settings->writeLogLn(*msg.string());
 
         currentAddress += blockSize;
     }
 
     // Woo, success =)
     // Need to tell the chip that we're done
-    port.write(":S");
+    port->write(":S");
     settings->writeLogLn("-> :S");
 
     setStatus(Programming);
-}
-
-qint64 Programmer::writeBlock(QSerialPort port, const char* data, qint64 start, qint64 size)
-{
-    return port.write(&(data[start]), size);
+    return true;
 }
 
 bool Programmer::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, int *endAddress, Settings *settings)
@@ -263,9 +251,9 @@ bool Programmer::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, 
             if (sub=="02" || sub=="04") {
                 //	02 - extended segment address record
                 //	04 - extended linear address record
-                QString msg;
+                QTextStream msg;
                 msg << "Warning on line " << lineNumber << ". Unsupported record type (whatever that means...)";
-                settings->writeLog(msg);
+                settings->writeLog(*msg.string());
             } else if (sub=="01") {
                 // 01 - End of File
                 file.close();
@@ -273,9 +261,9 @@ bool Programmer::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, 
             } else if (sub=="00") {
                 // This line is dandy
             } else {
-                QString msg;
+                QTextStream msg;
                 msg << "Warning on line " << lineNumber << ". Unknown record type (whatever that means...)";
-                settings->writeLog(msg);
+                settings->writeLog(*msg.string());
             }
 
             bool ok;
@@ -294,23 +282,23 @@ bool Programmer::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, 
             for (int idx = 0; idx < byteCount; idx++) {
                 int address = memoryAddress + idx;
                 if (address >= m_fileBuffer.length()) {
-                    QString msg;
+                    QTextStream msg;
                     msg << "Error at line " << lineNumber << ". Address " << Util::int2hex(address)
-                        << " out of buffer (max=" << Util::int2hex(m_fileBuffer) << ").";
-                    settings->writeLogLn(msg);
+                        << " out of buffer (max=" << Util::byte2hex(m_fileBuffer) << ").";
+                    settings->writeLogLn(*msg.string());
                 }
 
                 if (address > *endAddress) *endAddress = address;
                 if (address < *startAddress) *startAddress = address;
-                data[address] = (char)(line.mid(idx*2 + 9, 2).toUInt(0, 16));
+                (*data)[address] = (char)(line.mid(idx*2 + 9, 2).toUInt(0, 16));
             }
             continue;
         }
 
         if (line.startsWith("S")) {
-            QString msg;
+            QTextStream msg;
             msg << "Error in line " << lineNumber << ". Motorola S format not supported.";
-            settings->writeLogLn(msg);
+            settings->writeLogLn(*msg.string());
             file.close();
             return false;
         }
@@ -400,7 +388,7 @@ void Programmer::setResends(int arg)
 
 void Programmer::resendsIncrement()
 {
-    emit resendsChanged(++m_resends)
+    emit resendsChanged(++m_resends);
 }
 
 int Programmer::currentAddress() const

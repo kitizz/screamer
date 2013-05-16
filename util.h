@@ -26,6 +26,8 @@
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtCore/QLatin1String>
 #include "settings.h"
+#include <QtCore/QDir>
+#include <QtCore/QCoreApplication>
 
 class Util
 {
@@ -39,7 +41,7 @@ public:
 
     static QString string2decimal(QString s);
 
-    static void resetMicro(QSerialPort port, Settings *settings);
+    static void resetMicro(QSerialPort *port, Settings *settings);
 
     static QList<QSerialPortInfo> getAvailablePorts();
 
@@ -48,6 +50,8 @@ public:
                                                 const QStringList& ignoredProperties = QStringList(QString(QLatin1String("objectName"))));
 
     static void qvariant2qobject(const QVariantMap& variant, QObject* object);
+
+    static QString adjustPath(const QString &path);
 
 private:
     Util();

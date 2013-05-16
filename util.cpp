@@ -1,6 +1,7 @@
 #include "util.h"
 #include <QThread>
 #include <QVariant>
+#include <QDebug>
 #include <QtCore/QMetaObject>
 #include <QtCore/QMetaProperty>
 
@@ -24,7 +25,7 @@ QString Util::byte2hex(QByteArray bytes)
 {
     QString result;
     foreach (char b, bytes)
-        result.append(" " + int2hex(byte));
+        result.append(" " + int2hex(b));
 
     return result;
 }
@@ -58,21 +59,21 @@ QString Util::string2decimal(QString s)
     return result;
 }
 
-void Util::resetMicro(QSerialPort port, Settings *settings)
+void Util::resetMicro(QSerialPort *port, Settings *settings)
 {
     switch(settings->resetType()) {
     case Settings::RTS:
-        port.setRequestToSend(true);
+        port->setRequestToSend(true);
         QThread::msleep(10);
-        port.setRequestToSend(false);
+        port->setRequestToSend(false);
         if (settings->logDownload())
             settings->writeLog("-- Reset RTS\n");
         break;
 
     case Settings::DTR:
-        port.setDataTerminalReady(true);
+        port->setDataTerminalReady(true);
         QThread::msleep(10);
-        port.setDataTerminalReady(false);
+        port->setDataTerminalReady(false);
         if (settings->logDownload())
             settings->writeLog("-- Reset DTR\n");
         break;
@@ -131,4 +132,21 @@ void Util::qvariant2qobject(const QVariantMap &variant, QObject *object)
             metaproperty.write( object, v );
         }
     }
+}
+
+QString Util::adjustPath(const QString &path)
+{
+#ifdef Q_OS_UNIX
+#ifdef Q_OS_MAC
+    if (!QDir::isAbsolutePath(path))
+        return QString::fromLatin1("%1/../Resources/%2")
+                .arg(QCoreApplication::applicationDirPath(), path);
+#elif !defined(Q_OS_ANDROID)
+    const QString pathInInstallDir =
+            QString::fromLatin1("%1/../%2").arg(QCoreApplication::applicationDirPath(), path);
+    if (QFileInfo(pathInInstallDir).exists())
+        return pathInInstallDir;
+#endif
+#endif
+    return path;
 }

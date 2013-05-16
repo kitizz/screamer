@@ -8,16 +8,43 @@
 #include <QJsonObject>
 
 Settings::Settings(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    m_settingsFile("settings.txt"),
+    m_log(QString()),
+    m_selectedPort(0)
 {
+    if(!load()) {
+        m_port = QString();
+        m_baudProgram = QSerialPort::Baud9600;
+        m_frequency = 8000000;
+        m_chip = Atmega328;
+        m_baudTerminal = QSerialPort::Baud9600;
+        m_dataBits = QSerialPort::Data7;
+        m_parity = QSerialPort::NoParity;
+        m_stopBits = QSerialPort::OneStop;
+        m_terminalCharacters = Settings::Ascii;
+        m_echo = false;
+        m_autoOpenTerminal = true;
+        m_logDownload = true;
+        m_wrapTerminal = true;
+        m_hexFiles = QStringList();
+        m_hexFile = QUrl();
+        m_resetType = Settings::RTS;
+
+        save();
+    }
+
+    connect(this, &Settings::resetTypeChanged, this, &Settings::changed);
+
+    connect(this, &Settings::changed, this, &Settings::save);
 }
 
-void Settings::load()
+bool Settings::load()
 {
     QFile file(settingsFile().path());
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "Unable to access settings file:" << settingsFile();
-        return;
+        return false;
     }
 
     QByteArray data = file.readAll();
@@ -25,18 +52,22 @@ void Settings::load()
     if (!doc.isObject()) {
         qWarning() << "Settings File in unexpected format. Unable to load settings.";
         file.close();
-        return;
+        return false;
     }
 
     QVariantMap map = doc.object().toVariantMap();
 
     // Update the settings:
     Util::qvariant2qobject(map, this);
+    return true;
 }
 
 void Settings::save()
 {
-    QVariantMap map = Util::qobject2qvariant(this);
+    QStringList ignore;
+    ignore << "objectName" << "selectedPort";
+    QVariantMap map = Util::qobject2qvariant(this, ignore);
+
     QJsonObject json = QJsonObject::fromVariantMap(map);
     QJsonDocument doc = QJsonDocument(json);
 
@@ -92,13 +123,13 @@ void Settings::setPort(QString arg)
     emit portChanged(arg);
 }
 
-int Settings::baudProgram() const
+QSerialPort::BaudRate Settings::baudProgram() const
 {
     return m_baudProgram;
 }
 
 
-void Settings::setBaudProgram(int arg)
+void Settings::setBaudProgram(QSerialPort::BaudRate arg)
 {
     if (m_baudProgram == arg) return;
     m_baudProgram = arg;
@@ -183,16 +214,16 @@ void Settings::setStopBits(QSerialPort::StopBits arg)
     emit stopBitsChanged(arg);
 }
 
-Serial::TerminalCharacters Settings::terminalCharacters() const
+Settings::TerminalCharacters Settings::terminalCharacters() const
 {
-    return m_terminaCharacters;
+    return m_terminalCharacters;
 }
 
 
-void Settings::setTerminalCharacters(Serial::TerminalCharacters arg)
+void Settings::setTerminalCharacters(Settings::TerminalCharacters arg)
 {
-    if (m_terminaCharacters == arg) return;
-    m_terminaCharacters = arg;
+    if (m_terminalCharacters == arg) return;
+    m_terminalCharacters = arg;
     emit terminalCharactersChanged(arg);
 }
 
@@ -285,4 +316,24 @@ void Settings::setResetType(Settings::ResetType arg)
     if (m_resetType == arg) return;
     m_resetType = arg;
     emit resetTypeChanged(arg);
+}
+
+QSerialPort *Settings::selectedPort() const
+{
+    return m_selectedPort;
+}
+
+
+void Settings::setSelectedPort(QSerialPort *arg)
+{
+    if (m_selectedPort == arg) return;
+    m_selectedPort = arg;
+    emit selectedPortChanged(arg);
+}
+
+void Settings::setupPort(QSerialPort *port)
+{
+    port->setDataBits(dataBits());
+    port->setParity(parity());
+    port->setStopBits(stopBits());
 }

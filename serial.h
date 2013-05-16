@@ -13,14 +13,14 @@ class Serial : public QObject
     Q_ENUMS(QSerialPort::StopBits)
     Q_ENUMS(QSerialPort::FlowControl)
     Q_ENUMS(QSerialPort::SerialPortError)
-    Q_ENUMS(Chip)
-    Q_ENUMS(TerminalCharacters)
+//    Q_ENUMS(Chip)
+//    Q_ENUMS(TerminalCharacters)
 
 public:
     explicit Serial(QObject *parent = 0);
 
-    enum Chip { Atmega168=0, Atmega328=1 };
-    enum TerminalCharacters { Ascii=0, Hex=1, Dec=2 };
+//    enum Chip { Atmega168=0, Atmega328=1 };
+//    enum TerminalCharacters { Ascii=0, Hex=1, Dec=2 };
 
 signals:
     

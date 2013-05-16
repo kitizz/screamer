@@ -17,13 +17,16 @@ class Programmer : public QObject
     Q_PROPERTY(int resends READ resends NOTIFY resendsChanged)
     Q_PROPERTY(int currentAddress READ currentAddress NOTIFY currentAddressChanged)
 
+//    Q_PROPERTY(QSerialPort *port READ port WRITE setport NOTIFY portChanged)
+
     Q_ENUMS(Status)
 
 public:
     enum Status { Idle, Connecting, Connected, Programming, Failure, Error };
     explicit Programmer(QObject *parent = 0);
 
-    Q_INVOKABLE void programMicro(QSerialPort *port, Settings *settings);
+    Q_INVOKABLE void programMicro(Settings *settings);
+    Q_INVOKABLE void resetMicro(Settings *settings);
 
     bool startProgramMode(QSerialPort *port, Settings *settings);
     bool sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings);
@@ -47,6 +50,9 @@ public:
     int currentAddress() const;
     void setCurrentAddress(int arg);
 
+    QSerialPort * port() const;
+    void setport(QSerialPort * arg);
+
 signals:
     void isProgrammingChanged(bool arg);
     void progressChanged(qreal arg);
@@ -56,6 +62,8 @@ signals:
     void resendsChanged(int arg);
 
     void currentAddressChanged(int arg);
+
+    void portChanged(QSerialPort * arg);
 
 public slots:
     void stopProgramming();
@@ -74,6 +82,7 @@ private:
 
     int m_resends;
     int m_currentAddress;
+    QSerialPort * m_port;
 };
 
 #endif // PROGRAMMER_H

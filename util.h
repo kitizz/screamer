@@ -45,6 +45,8 @@ public:
 
     static QList<QSerialPortInfo> getAvailablePorts();
 
+    static QSerialPortInfo findPort(QString name);
+
     // From qjson:
     static QVariantMap qobject2qvariant( const QObject* object,
                                                 const QStringList& ignoredProperties = QStringList(QString(QLatin1String("objectName"))));

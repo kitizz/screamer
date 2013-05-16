@@ -4,12 +4,16 @@
 
 #include "util.h"
 #include "settings.h"
+#include "programmer.h"
+#include "terminal.h"
 #include <QSerialPort>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    qmlRegisterType<Programmer>("Screamer", 1,0, "Programmer");
+    qmlRegisterType<Terminal>("Screamer", 1,0, "Terminal");
     qmlRegisterType<Settings>("Screamer", 1,0, "Settings");
     qmlRegisterType<QSerialPort>("Screamer", 1,0, "Serial");
 

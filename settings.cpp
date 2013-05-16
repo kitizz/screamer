@@ -35,7 +35,13 @@ Settings::Settings(QObject *parent) :
         save();
     }
 
-    connect(this, &Settings::portChanged, this, &Settings::changed);
+    // Set up timer to poll for available ports
+    m_timer.setInterval(2000);
+    m_timer.setSingleShot(false);
+    m_timer.start();
+    connect(&m_timer, &QTimer::timeout, this, &Settings::updatePorts);
+
+    connect(this, &Settings::portNameChanged, this, &Settings::changed);
     connect(this, &Settings::baudProgramChanged, this, &Settings::changed);
     connect(this, &Settings::frequencyChanged, this, &Settings::changed);
     connect(this, &Settings::chipChanged, this, &Settings::changed);
@@ -108,6 +114,19 @@ void Settings::save()
     m_saving = false;
 }
 
+void Settings::updatePorts()
+{
+    QStringList portNames;
+    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+        portNames << info.portName();
+    }
+
+    if (portNames == m_availablePorts) return;
+
+    m_availablePorts = portNames;
+    emit availablePortsChanged(m_availablePorts);
+}
+
 void Settings::writeLog(QString log)
 {
     m_log.append(log + " ");
@@ -125,7 +144,7 @@ void Settings::setSettingsFile(QUrl arg)
     emit settingsFileChanged(arg);
 }
 
-QString Settings::port() const
+QString Settings::portName() const
 {
     return m_port;
 }
@@ -137,11 +156,11 @@ QUrl Settings::settingsFile() const
 }
 
 
-void Settings::setPort(QString arg)
+void Settings::setPortName(QString arg)
 {
     if (m_port == arg) return;
     m_port = arg;
-    emit portChanged(arg);
+    emit portNameChanged(arg);
 }
 
 QSerialPort::BaudRate Settings::baudProgram() const
@@ -357,4 +376,13 @@ void Settings::setupPort(QSerialPort *port)
     port->setDataBits(dataBits());
     port->setParity(parity());
     port->setStopBits(stopBits());
+}
+
+void Settings::getPortFromName(QString portName)
+{
+}
+
+QStringList Settings::availablePorts() const
+{
+    return m_availablePorts;
 }

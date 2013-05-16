@@ -31,17 +31,15 @@ public:
     void setsettings(Settings *arg);
 
 signals:
-    
     void portChanged(QSerialPort * arg);
-
     void activeChanged(bool arg);
-
-    void textChanged(QString arg);
-
+    void textChanged();
     void settingsChanged(Settings * arg);
 
 public slots:
     void updateInput();
+    void changePort();
+    void updatePort();
 
 private:
     QTimer m_timer;

@@ -63,6 +63,7 @@ void Util::resetMicro(QSerialPort *port, Settings *settings)
 {
     switch(settings->resetType()) {
     case Settings::RTS:
+        qDebug() << "Reset: RTS";
         port->setRequestToSend(true);
         QThread::msleep(10);
         port->setRequestToSend(false);
@@ -71,6 +72,7 @@ void Util::resetMicro(QSerialPort *port, Settings *settings)
         break;
 
     case Settings::DTR:
+        qDebug() << "Reset: DTR";
         port->setDataTerminalReady(true);
         QThread::msleep(10);
         port->setDataTerminalReady(false);
@@ -83,14 +85,15 @@ void Util::resetMicro(QSerialPort *port, Settings *settings)
 
 QList<QSerialPortInfo> Util::getAvailablePorts()
 {
-    qDebug() << "LIST SERIAL PORTS";
-    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
-        qDebug() << "Name        : " << info.portName();
-//        qDebug() << "Description : " << info.description();
-//        qDebug() << "Manufacturer: " << info.manufacturer();
-    }
-
     return QSerialPortInfo::availablePorts();
+}
+
+QSerialPortInfo Util::findPort(QString name)
+{
+    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+        if (name == info.portName()) return info;
+    }
+    return QSerialPortInfo();
 }
 
 QVariantMap Util::qobject2qvariant(const QObject *object, const QStringList &ignoredProperties)

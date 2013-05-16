@@ -27,8 +27,12 @@ Programmer::Programmer(QObject *parent) :
 {
 }
 
-void Programmer::programMicro(QSerialPort *port, Settings *settings)
+void Programmer::programMicro(Settings *settings)
 {
+    // Create and open the serial port
+    QSerialPort *port = new QSerialPort(settings->portName());
+    if (port->isOpen()) port->close();
+
     setStatus(Idle);
 
     setIsProgramming(true);
@@ -81,6 +85,12 @@ void Programmer::programMicro(QSerialPort *port, Settings *settings)
     Util::resetMicro(port, settings);
 
 
+}
+
+void Programmer::resetMicro(Settings *settings)
+{
+    QSerialPort *port = new QSerialPort(settings->portName());
+    Util::resetMicro(port, settings);
 }
 
 bool Programmer::startProgramMode(QSerialPort *port, Settings *settings)

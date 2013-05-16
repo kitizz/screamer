@@ -13,13 +13,19 @@ Tab {
         anchors.fill: parent
         orientation: Qt.Horizontal
 
+        Programmer {
+            id: programmer
+        }
+
         Rectangle {
             id: settingsPane
-            width: 200
+            width: 250
             Layout.minimumWidth: 150
             property real comboHeight: 22
+            property real comboWidth: 150
 
             Column {
+                id: settingsColumn
                 anchors.fill: parent
                 spacing: 5
 
@@ -30,18 +36,48 @@ Tab {
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
+                Button {
+                    text: "Reset"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: programmer.resetMicro(settings)
+                }
+
                 Item { width: parent.width; height: 30 }
 
                 LabelCombo {
                     id: comboPort
                     labelText: "Port |"
                     height: settingsPane.comboHeight
+                    implicitComboWidth: settingsPane.comboWidth
+                    combo.model: ListModel { id: portModel }
+
+                    property var portList: settings.availablePorts
+                    onPortListChanged: {
+                        portModel.clear()
+                        var newIndex = 0
+                        for(var i=0; i<portList.length; ++i) {
+                            portModel.append({ "text": portList[i]})
+                            if (portList[i] == settings.portName)
+                                newIndex = i
+                        }
+                        combo.currentIndex = newIndex
+                        updatePort()
+                    }
+                    combo.onCurrentIndexChanged: updatePort()
+
+                    function updatePort() {
+                        if (portModel.count == 0)
+                            settings.portName = "";
+                        else
+                            settings.portName = portModel.get(combo.currentIndex).text
+                    }
                 }
 
                 LabelCombo {
                     id: comboBaud
                     labelText: "Baude Rate |"
                     height: settingsPane.comboHeight
+                    implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
                         id: baudModel
                         ListElement { text: "1200"; value: Serial.Baud1200 }
@@ -64,6 +100,7 @@ Tab {
                     id: comboChip
                     labelText: "Chip |"
                     height: settingsPane.comboHeight
+                    implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
                         id: chipModel
                         ListElement { text: "Atmega16"; value: Settings.Atmega168 }
@@ -80,6 +117,7 @@ Tab {
                     id: comboReset
                     labelText: "Reset Type |"
                     height: settingsPane.comboHeight
+                    implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
                         id: resetModel
                         ListElement { text: "RTS"; value: Settings.RTS }

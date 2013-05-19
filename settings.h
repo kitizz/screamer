@@ -13,6 +13,8 @@ class Settings : public QObject
     Q_OBJECT
     Q_PROPERTY(QUrl settingsFile READ settingsFile WRITE setSettingsFile NOTIFY settingsFileChanged)
 
+    Q_PROPERTY(QString log READ log NOTIFY logChanged)
+
     Q_PROPERTY(QString portName READ portName WRITE setPortName NOTIFY portNameChanged)
     Q_PROPERTY(QStringList availablePorts READ availablePorts NOTIFY availablePortsChanged)
 //    Q_PROPERTY(QSerialPort *selectedPort READ selectedPort NOTIFY selectedPortChanged)
@@ -39,7 +41,7 @@ class Settings : public QObject
     Q_ENUMS(Chip TerminalCharacters ResetType)
 
 public:
-    enum Chip { Atmega168=0, Atmega328=1 };
+    enum Chip { Atmega168=0, Atmega328=1, Atmega32u4=2 };
     enum TerminalCharacters { Ascii=0, Hex=1, Dec=2 };
     enum ResetType { RTS=0, DTR=1};
 
@@ -109,6 +111,7 @@ public:
     Q_INVOKABLE void getPortFromName(QString portName);
 
     QStringList availablePorts() const;
+    QString log() const;
 signals:
     void changed();
 
@@ -135,6 +138,8 @@ signals:
     void selectedPortChanged(QSerialPort *arg);
 
     void availablePortsChanged(QStringList arg);
+
+    void logChanged();
 
 public slots:
     Q_INVOKABLE void save();

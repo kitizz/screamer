@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    qRegisterMetaType<Programmer::Status>("Status");
     qmlRegisterType<Programmer>("Screamer", 1,0, "Programmer");
     qmlRegisterType<Terminal>("Screamer", 1,0, "Terminal");
     qmlRegisterType<Settings>("Screamer", 1,0, "Settings");

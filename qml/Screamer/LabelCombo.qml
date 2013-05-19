@@ -9,7 +9,7 @@ Item {
     property real implicitComboWidth: 100
     property alias labelText: lbl.text
 
-    property int value: 0
+    property int value: -10
 
     property alias combo: comboBox
 

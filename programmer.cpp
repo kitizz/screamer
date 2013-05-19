@@ -19,41 +19,62 @@ char datablock_failure = (char)0x07;
 Programmer::Programmer(QObject *parent) :
     QObject(parent),
     m_isProgramming(false),
-    m_stopProgramming(false),
-    m_fileBuffer(QByteArray(MAX_MEM_SIZE, 0xFF)), // TODO: Perhaps have this as a constant somewhere?
-    m_startAddress(-1),
-    m_endAddress(MAX_MEM_SIZE),
-    m_resends(0)
+    m_resends(0),
+    m_currentAddress(0),
+    m_lastAddress(0),
+    m_progress(0),
+    m_status(Idle),
+    m_statusText("Idle")
 {
+    m_worker = new Worker(this);
+    m_worker->moveToThread(&m_workerThread);
+    connect(&m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+    connect(this, &Programmer::programMicro, m_worker, &Worker::kayGo);
+    connect(this, &Programmer::stopProgramming, m_worker, &Worker::stopProgramming);
+    m_workerThread.start();
 }
 
-void Programmer::programMicro(Settings *settings)
+void Programmer::stopProgramming()
 {
-    // Create and open the serial port
-    QSerialPort *port = new QSerialPort(settings->portName());
-    if (port->isOpen()) port->close();
+    m_worker->stopProgramming();
+}
 
-    setStatus(Idle);
+bool Worker::openPort(QSerialPort *port) {
+    if (port->isOpen()) {
+        qDebug() << "Port already open...";
+        return true;
+    }
+    port->open(QIODevice::ReadWrite);
 
-    setIsProgramming(true);
+    if (port->error() != QSerialPort::NoError) {
+        qDebug() << "Error Opening Port Terminal:" << port->error();
+        return false;
+    }
+    return true;
+}
 
-    QString currentFile;
-    QString filename;
+void Worker::programMicro(Settings *settings, QSerialPort *port)
+{
+    setStatus(Programmer::Idle);
 
     switch (settings->chip()) {
     case Settings::Atmega168:
         m_fileBuffer.resize(SIZE_ATMEGA168);
         break;
     case Settings::Atmega328:
+    case Settings::Atmega32u4:
         m_fileBuffer.resize(SIZE_ATMEGA328);
         break;
     }
 
+    qDebug() << "Loading HEX file";
     if (!loadHexFile(settings->hexFile(), &m_fileBuffer, &m_startAddress, &m_endAddress, settings)) {
         settings->writeLogLn("Error: Unable to Load Hex File");
-        setStatus(Error);
+        setStatus(Programmer::Error);
         return;
     }
+
+    qDebug() << "Loaded Hex File";
 
     // Set the reset type...
     switch (settings->resetType()) {
@@ -65,15 +86,28 @@ void Programmer::programMicro(Settings *settings)
         break;
     }
 
-    port->open(QSerialPort::ReadWrite);
-    setStatus(Connecting);
+    qDebug() << "Opening Port";
+    setStatus(Programmer::Connecting);
 
+    bool success = false;
+    for (int i=0; i<2; ++i) {
+        success = openPort(port);
+        if (success) break;
+        if (m_stopProgramming) break;
+    }
+    if (!success) {
+        setStatus(Programmer::Error, "Unable to open chip.");
+        return;
+    }
+
+    qDebug() << "Entering program mode";
     // Enter programming mode...
     if (!startProgramMode(port, settings)) {
         settings->writeLogLn("Unable to Enter Programming Mode");
         return;
     }
 
+    qDebug() << "Start sending program";
     // Send over the program.
     if (!sendProgram(port, m_fileBuffer, m_startAddress, m_endAddress, settings)) {
         settings->writeLogLn("Sending Program was unsuccessful.");
@@ -81,28 +115,31 @@ void Programmer::programMicro(Settings *settings)
     }
 
     if (port->isOpen()) port->close();
-    setStatus(Idle);
+    setStatus(Programmer::Idle);
+    setProgress(0, 0, 0);
+    m_programmer->setResends(0);
+
     Util::resetMicro(port, settings);
 
 
 }
 
-void Programmer::resetMicro(Settings *settings)
+void Worker::resetMicro(Settings *settings)
 {
     QSerialPort *port = new QSerialPort(settings->portName());
     Util::resetMicro(port, settings);
 }
 
-bool Programmer::startProgramMode(QSerialPort *port, Settings *settings)
+bool Worker::startProgramMode(QSerialPort *port, Settings *settings)
 {
     settings->writeLogLn("Sending Chip into Program Mode...");
-    setStatusText("Waiting for target chip to broadcast boot.");
+    setStatus(Programmer::Connecting, "Waiting for target chip to broadcast boot.");
 
-    Util::resetMicro(port, settings);
+//    Util::resetMicro(port, settings);
 
     while(true) {
         if (m_stopProgramming) {
-            setStatusText("Programming cancelled. Target chip did not enter programming mode.");
+            setStatus(Programmer::Error, "Programming cancelled. Target chip did not enter programming mode.");
             settings->writeLogLn("Programming cancelled before chip entered programming mode.");
             return false;
         }
@@ -111,7 +148,9 @@ bool Programmer::startProgramMode(QSerialPort *port, Settings *settings)
             continue;
         }
 
+        settings->writeLog("Receiving data...");
         QByteArray response = port->readAll();
+        settings->writeLog(QString(response));
         settings->writeLogLn("<-" + Util::byte2hex(response));
         if (response.indexOf(slave_ready) >= 0) {
             settings->writeLogLn("Received Broadcast!");
@@ -123,11 +162,11 @@ bool Programmer::startProgramMode(QSerialPort *port, Settings *settings)
     port->write(&loadmode_start, 1);
     settings->writeLogLn("->" + loadmode_start);
 
-    setStatusText("Load Mode Command Sent");
+    setStatus(Programmer::Connected, "Load Mode Command Sent");
     return true;
 }
 
-bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings)
+bool Worker::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings)
 {
     int currentAddress = startAddress;
     int blockSize = 0;
@@ -138,6 +177,15 @@ bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, in
     case Settings::Atmega168:
     case Settings::Atmega328:
         pageSize = 128;
+        break;
+    case Settings::Atmega32u4:
+        pageSize = 256;
+        break;
+    default:
+        qWarning() << "No page size for chip type.";
+        settings->writeLogLn("Error: Undefined Page size for chip type.");
+        setStatus(Programmer::Error, "No page size for chip");
+        return false;
     }
 
     while (currentAddress <= endAddress) {
@@ -150,7 +198,8 @@ bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, in
         }
 
         if (m_stopProgramming) {
-            setStatusText("The target chip did not finish loading. You will likely experience unexpected program execution.");
+            m_stopProgramming = false;
+            setStatus(Programmer::Error, "The target chip did not finish loading. You will likely experience unexpected program execution.");
             break;
         }
 
@@ -159,30 +208,27 @@ bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, in
         settings->writeLogLn("<-" + Util::int2hex((int)response));
 
         if (response == datablock_success) {
-            setStatus(Programming);
+            setStatus(Programmer::Programming);
         } else if (response == datablock_failure) {
             if (blockSize == 0) {
                 QString msg = "Error : Incorrect initial response from target IC. Programming is incomplete and will now halt.";
                 settings->writeLogLn(msg);
-                setStatusText(msg);
-                setStatus(Error);
+                setStatus(Programmer::Error, msg);
                 return false;
             }
-            setStatus(Failure);
+            setStatus(Programmer::Failure);
             currentAddress = currentAddress - blockSize;
-            resendsIncrement();
+            m_programmer->resendsIncrement();
         } else {
             // TODO: THis is probably not necessarilly the best
             QString msg = "Error : Incorrect response from target IC. Programming is incomplete and will now halt.";
             settings->writeLogLn(msg);
-            setStatusText(msg);
-            setStatus(Error);
+            setStatus(Programmer::Error, msg);
             return false;
         }
 
         // Update the progress
-        setCurrentAddress(currentAddress);
-        setProgress((currentAddress - startAddress)/(endAddress - startAddress + 1));
+        setProgress(currentAddress, endAddress, (currentAddress - startAddress)/(endAddress - startAddress + 1));
 
         blockSize = qMin(pageSize, endAddress - currentAddress + 1);
 
@@ -228,11 +274,11 @@ bool Programmer::sendProgram(QSerialPort *port, const QByteArray &fileBuffer, in
     port->write(":S");
     settings->writeLogLn("-> :S");
 
-    setStatus(Programming);
+    setStatus(Programmer::Programming);
     return true;
 }
 
-bool Programmer::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, int *endAddress, Settings *settings)
+bool Worker::loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, int *endAddress, Settings *settings)
 {
     QFile file(fileUrl.toLocalFile());
 
@@ -374,7 +420,7 @@ void Programmer::setStatusText(QString arg)
 {
     if (m_statusText == arg) return;
     m_statusText = arg;
-    emit statusTextChanged(arg);
+    emit statusTextChanged();
 }
 
 int Programmer::resends() const
@@ -382,8 +428,7 @@ int Programmer::resends() const
     return m_resends;
 }
 
-
-void Programmer::stopProgramming()
+void Worker::stopProgramming()
 {
     m_stopProgramming = true;
 }
@@ -412,4 +457,87 @@ void Programmer::setCurrentAddress(int arg)
     if (m_currentAddress == arg) return;
     m_currentAddress = arg;
     emit currentAddressChanged(arg);
+}
+
+
+void Programmer::setLastAddress(int arg)
+{
+    if (m_lastAddress == arg) return;
+    m_lastAddress = arg;
+    emit lastAddressChanged(arg);
+}
+
+int Programmer::lastAddress() const
+{
+    return m_lastAddress;
+}
+
+
+void Worker::setStatus(Programmer::Status status, QString statusText)
+{
+    m_programmer->setStatus(status);
+
+    if (statusText.isEmpty()) {
+        switch (status) {
+        case Programmer::Idle: statusText = "Idle"; break;
+        case Programmer::Connecting: statusText = "Connecting"; break;
+        case Programmer::Connected: statusText = "Connected"; break;
+        case Programmer::Programming: statusText = "Programming"; break;
+        case Programmer::Failure: statusText = "Failure"; break;
+        case Programmer::Error: statusText = "Error"; break;
+        }
+    }
+    m_programmer->setStatusText(statusText);
+}
+
+void Worker::setProgress(int current, int total, qreal progress)
+{
+    m_programmer->setProgress(progress);
+    m_programmer->setCurrentAddress(current);
+    m_programmer->setLastAddress(total);
+}
+
+void Worker::kayGo(Settings *settings)
+{
+    if (m_running) return;
+    m_programmer->setIsProgramming(true);
+    m_running = true;
+
+    // Create and open the serial port
+    QSerialPort *port = new QSerialPort(settings->portName());
+    while(port->isOpen()) {
+        port->close();
+        QThread::msleep(100);
+    }
+
+    port->setBaudRate(settings->baudProgram());
+    port->setDataBits(settings->dataBits());
+    port->setStopBits(settings->stopBits());
+    port->setParity(settings->parity());
+    programMicro(settings, port);
+
+    m_stopProgramming = false;
+    m_running = false;
+    m_programmer->setIsProgramming(false);
+}
+
+
+Worker::Worker(QObject *parent) : QObject(parent),
+    m_programmer(0),
+    m_running(false),
+    m_stopProgramming(false),
+    m_fileBuffer(QByteArray(MAX_MEM_SIZE, 0xFF)), // TODO: Perhaps have this as a constant somewhere?
+    m_startAddress(-1),
+    m_endAddress(MAX_MEM_SIZE)
+{
+}
+
+Worker::Worker(Programmer *prog, QObject *parent): QObject(parent),
+    m_running(false),
+    m_stopProgramming(false),
+    m_fileBuffer(QByteArray(MAX_MEM_SIZE, 0xFF)), // TODO: Perhaps have this as a constant somewhere?
+    m_startAddress(-1),
+    m_endAddress(MAX_MEM_SIZE)
+{
+    m_programmer = prog;
 }

@@ -80,6 +80,7 @@ void Util::resetMicro(QSerialPort *port, Settings *settings)
             settings->writeLog("-- Reset DTR\n");
         break;
     }
+    qDebug() << "Reset complete";
     QThread::msleep(10);
 }
 

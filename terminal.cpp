@@ -1,5 +1,6 @@
 #include "terminal.h"
 #include <QEvent>
+#include <QThread>
 #include <QKeyEvent>
 #include <QDebug>
 #include "util.h"
@@ -40,17 +41,19 @@ bool Terminal::active() const
 void Terminal::setActive(bool arg)
 {
     if (m_active == arg) return;
-    m_active = arg;
 
     qDebug() << "Setting Active" << arg;
     if (m_port) {
-        if (arg) {
-            qDebug() << "Opening Port" << m_port->portName();
-            m_port->open(QIODevice::ReadWrite);
-        } else {
+        if (m_port->isOpen())
             m_port->close();
+        if (arg) {
+            updatePort();
+            if (!openPort()) return;
+            m_port->setRequestToSend(true);
         }
     }
+
+    m_active = arg;
     emit activeChanged(arg);
 }
 
@@ -105,8 +108,12 @@ void Terminal::changePort()
     if (m_port && m_port->portName() == m_settings->portName())
         return;
 
+    bool wasOpen = false;
     if (m_port) {
-        if (m_port->isOpen()) m_port->close();
+        if (m_port->isOpen()) {
+            wasOpen = true;
+            m_port->close();
+        }
     }
 
     if (m_port)
@@ -115,9 +122,10 @@ void Terminal::changePort()
         m_port = new QSerialPort(m_settings->portName());
 
     if (m_port->error() != QSerialPort::NoError) {
-        qDebug() << "Error Opening Port:" << m_port->error();
+        qDebug() << "Error Changing Port:" << m_port->error();
     } else {
         updatePort();
+        if (wasOpen) openPort();
     }
 }
 
@@ -126,19 +134,29 @@ void Terminal::updatePort()
     if (!m_active || !m_port) return;
 
     if (m_port->isOpen()) m_port->close();
+    while (m_port->isOpen()) QThread::msleep(10);
 
     m_port->setBaudRate(m_settings->baudTerminal());
     m_port->setDataBits(m_settings->dataBits());
     m_port->setStopBits(m_settings->stopBits());
     m_port->setParity(m_settings->parity());
+    m_port->setRequestToSend(true);
+}
 
+bool Terminal::openPort()
+{
+    if (m_port->isOpen()) {
+        qDebug() << "Port already open...";
+        return true;
+    }
     m_port->open(QIODevice::ReadWrite);
 
     if (m_port->error() != QSerialPort::NoError) {
-        qDebug() << "Error Opening Port:" << m_port->error();
+        qDebug() << "Error Opening Port Terminal:" << m_port->error();
+        return false;
     }
+    return true;
 }
-
 
 void Terminal::setsettings(Settings *arg)
 {

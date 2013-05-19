@@ -130,11 +130,13 @@ void Settings::updatePorts()
 void Settings::writeLog(QString log)
 {
     m_log.append(log + " ");
+    emit logChanged();
 }
 
 void Settings::writeLogLn(QString log)
 {
     m_log.append(log + "\n");
+    emit logChanged();
 }
 
 void Settings::setSettingsFile(QUrl arg)
@@ -385,4 +387,9 @@ void Settings::getPortFromName(QString portName)
 QStringList Settings::availablePorts() const
 {
     return m_availablePorts;
+}
+
+QString Settings::log() const
+{
+    return m_log;
 }

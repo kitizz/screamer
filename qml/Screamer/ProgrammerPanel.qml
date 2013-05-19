@@ -1,6 +1,7 @@
 import QtQuick 2.1
 import QtQuick.Controls 1.0
 import QtQuick.Layouts 1.0
+import QtQuick.Dialogs 1.0
 
 import Screamer 1.0
 
@@ -17,7 +18,7 @@ Tab {
             id: programmer
         }
 
-        Rectangle {
+        Item {
             id: settingsPane
             width: 250
             Layout.minimumWidth: 150
@@ -32,8 +33,15 @@ Tab {
                 Item { width: parent.width; height: 30 }
 
                 Button {
-                    text: "Download"
+                    text: programmer.isProgramming ? "Cancel" : "Download"
                     anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: {
+                        if (programmer.isProgramming) {
+                            programmer.stopProgramming()
+                        } else {
+                            programmer.programMicro(settings)
+                        }
+                    }
                 }
 
                 Button {
@@ -75,7 +83,7 @@ Tab {
 
                 LabelCombo {
                     id: comboBaud
-                    labelText: "Baude Rate |"
+                    labelText: "Baud Rate |"
                     height: settingsPane.comboHeight
                     implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
@@ -105,6 +113,7 @@ Tab {
                         id: chipModel
                         ListElement { text: "Atmega16"; value: Settings.Atmega168 }
                         ListElement { text: "Atmega32"; value: Settings.Atmega328 }
+                        ListElement { text: "Atmega32u4"; value: Settings.Atmega32u4 }
                     }
 
                     value: settings.chip
@@ -151,27 +160,121 @@ Tab {
                     onCheckedChanged: settings.logDownload = checked
                 }
             }
-
-
         }
 
         SplitView {
             orientation: Qt.Vertical
             Layout.fillWidth: true
 
-            Rectangle {
+            Item {
                 id: logPane
-                color: "blue"
-                opacity: 0.2
                 Layout.minimumHeight: 150
                 Layout.fillHeight: true
+
+                TextArea {
+                    id: terminalView
+                    anchors.fill: parent
+                    anchors.margins: 5
+                    wrapMode: Text.Wrap
+
+                    text: settings.log
+
+                    onTextChanged: {
+                        cursorPosition = text.length
+                    }
+                }
             }
 
-            Rectangle {
+            Item {
                 id: statusPane
-                color: "red"
-                opacity: 0.2
                 Layout.minimumHeight: 150
+                Column {
+                    spacing: 5
+                    anchors.fill: parent
+                    anchors.margins: 5
+
+                    Item { // Hex File
+                        anchors { left: parent.left; right: parent.right }
+                        height: childrenRect.height
+    //                    height: fileText.height + 10
+
+                        Label {
+                            id: fileText
+                            anchors { left: parent.left; right: btnBrowse.left; verticalCenter: btnBrowse.verticalCenter}
+                            anchors.margins: 5
+
+                            text: settings.hexFile
+                            elide: Text.ElideMiddle
+
+                        }
+                        Button {
+                            id: btnBrowse
+                            anchors { right: parent.right}
+                            anchors.margins: 5
+
+                            text: "Browse..."
+                            onClicked: hexFileDialog.open()
+                        }
+
+                        FileDialog {
+                            id: hexFileDialog
+                            title: "Choose a hex file..."
+                            nameFilters: ["Hex Files (*.hex)", "All Files (*)"]
+                            onAccepted: {
+                                console.log("Chose:", hexFileDialog.fileUrls)
+                                console.log(hexFileDialog.fileUrl)
+                                settings.hexFile = hexFileDialog.fileUrl
+                            }
+                        }
+                    }
+
+                    Text { // Progress Text
+                        property int currentAddress: programmer.currentAddress
+                        property int totalAddress: programmer.lastAddress
+                        text: {
+                            if (totalAddress == 0) {
+                                return "Buffer Empty"
+                            } else {
+                                return ("Loading address " + currentAddress + " of " + totalAddress)
+                            }
+                        }
+                    }
+
+                    ProgressBar {
+                        anchors { left: parent.left; right: parent.right }
+                        minimumValue: 0; maximumValue: 1
+                        value: programmer.progress
+                    }
+
+                    Item {
+                        anchors { left: parent.left; right: parent.right }
+                        height: statusRow.height
+                        Row {
+                            id: statusRow
+                            spacing: 10
+                            Rectangle {
+                                height: 20; width: height
+                                color: {
+                                    switch (programmer.status) {
+                                    case Programmer.Idle: return "white"
+                                    case Programmer.Connecting: return "yellow"
+                                    case Programmer.Connected: return "green"
+                                    case Programmer.Programming: return "blue"
+                                    case Programmer.Failure: return "orange"
+                                    case Programmer.Error: return "red"
+                                    default: return "white"
+                                    }
+                                }
+                            }
+                            Text {
+                                text: programmer.statusText
+                            }
+                        }
+                    }
+
+                    Text { text: "Retries: " + programmer.resends }
+
+                }
             }
         }
     }

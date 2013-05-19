@@ -40,6 +40,7 @@ public slots:
     void updateInput();
     void changePort();
     void updatePort();
+    bool openPort();
 
 private:
     QTimer m_timer;

@@ -19,7 +19,7 @@ Tab {
             settings: tab.settings
         }
 
-        Rectangle {
+        Item {
             id: settingsPane
             width: 250
             Layout.minimumWidth: 150
@@ -78,7 +78,7 @@ Tab {
 
                 LabelCombo {
                     id: comboBaud
-                    labelText: "Baude Rate |"
+                    labelText: "Baud Rate |"
                     height: settingsPane.comboHeight
                     implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
@@ -137,7 +137,7 @@ Tab {
 
                 LabelCombo {
                     id: comboParity
-                    labelText: "Stop Bits |"
+                    labelText: "Parity |"
                     height: settingsPane.comboHeight
                     implicitComboWidth: settingsPane.comboWidth
                     combo.model: ListModel {
@@ -156,7 +156,10 @@ Tab {
 
                 GroupBox {
                     title: "Display (No Effect ATM)"
+//                    width: displayColumn.width
+                    anchors.horizontalCenter: parent.horizontalCenter
                     Column {
+                        id: displayColumn
                         ExclusiveGroup { id: displayGroup }
                         RadioButton {
                             text: "ASCII"
@@ -203,12 +206,13 @@ Tab {
 
         }
 
-        Rectangle {
+        Item {
             Layout.fillWidth: true
 
             TextArea {
                 id: terminalView
                 anchors.fill: parent
+                anchors.margins: 5
                 wrapMode: wrap.checked ? Text.Wrap : Text.NoWrap
 
                 text: terminal.text

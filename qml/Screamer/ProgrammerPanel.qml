@@ -6,6 +6,7 @@ import QtQuick.Dialogs 1.0
 import Screamer 1.0
 
 Tab {
+    id: programTab
     title: "Program"
 
     property Settings settings
@@ -16,6 +17,10 @@ Tab {
 
         Programmer {
             id: programmer
+            onIsProgrammingChanged: {
+                if (settings == null) return
+                settings.programmerActive = programmer.isProgramming
+            }
         }
 
         Item {
@@ -48,6 +53,12 @@ Tab {
                     text: "Reset"
                     anchors.horizontalCenter: parent.horizontalCenter
                     onClicked: programmer.resetMicro(settings)
+                }
+
+                Button {
+                    text: "Clear"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: settings.clearLog()
                 }
 
                 Item { width: parent.width; height: 30 }
@@ -131,6 +142,7 @@ Tab {
                         id: resetModel
                         ListElement { text: "RTS"; value: Settings.RTS }
                         ListElement { text: "DTR"; value: Settings.DTR }
+                        ListElement { text: "Software"; value: Settings.Software }
                     }
 
                     value: settings.resetType

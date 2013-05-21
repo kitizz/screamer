@@ -17,7 +17,16 @@ QString Util::int2hex(int i)
     if (i<16)
         result.prepend("0");
 
-    qDebug() << "int2hex:" << i << "to" << result;
+    return result;
+}
+
+QString Util::char2hex(unsigned char i)
+{
+    QString result;
+    result.setNum(i, 16);
+    if (i<16)
+        result.prepend("0");
+
     return result;
 }
 
@@ -25,7 +34,7 @@ QString Util::byte2hex(QByteArray bytes)
 {
     QString result;
     foreach (char b, bytes)
-        result.append(" " + int2hex(b));
+        result.append(" " + char2hex(b));
 
     return result;
 }
@@ -78,6 +87,22 @@ void Util::resetMicro(QSerialPort *port, Settings *settings)
         port->setDataTerminalReady(false);
         if (settings->logDownload())
             settings->writeLog("-- Reset DTR\n");
+        break;
+    case Settings::Software:
+        qDebug() << "Reset: Software";
+        if (!port->isOpen()) {
+            qDebug() << "Port not open";
+            settings->writeLogLn("Port must be open for software reset");
+            return;
+        }
+        port->write("R");
+        port->flush();
+        QThread::msleep(200);
+        QByteArray response = port->readAll();
+        qDebug() << "Response:" << response;
+        if (settings->logDownload()) {
+            settings->writeLogLn(response);
+        }
         break;
     }
     qDebug() << "Reset complete";

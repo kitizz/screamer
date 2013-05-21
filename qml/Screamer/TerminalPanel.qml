@@ -17,6 +17,11 @@ Tab {
         Terminal {
             id: terminal
             settings: tab.settings
+            onActiveChanged: {
+                if (settings == null) return
+                settings.terminalActive = terminal.active
+                TabView.currentIndex = index;
+            }
         }
 
         Item {
@@ -53,7 +58,7 @@ Tab {
                     anchors.horizontalCenter: parent.horizontalCenter
                     checked: false
 
-                    property bool value: terminal.active
+                    property bool value: settings && settings.terminalActive
                     onValueChanged: checked = value
                     onCheckedChanged: terminal.active = checked
                 }

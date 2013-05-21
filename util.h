@@ -33,6 +33,7 @@ class Util
 {
 public:
     static QString int2hex(int i);
+    static QString char2hex(unsigned char i);
 
     static QString byte2hex(QByteArray bytes);
     static QString byte2hex(QByteArray byte, int start, int length);

@@ -41,20 +41,24 @@ bool Terminal::active() const
 void Terminal::setActive(bool arg)
 {
     if (m_active == arg) return;
-
-    qDebug() << "Setting Active" << arg;
-    if (m_port) {
-        if (m_port->isOpen())
-            m_port->close();
-        if (arg) {
-            updatePort();
-            if (!openPort()) return;
-            m_port->setRequestToSend(true);
-        }
-    }
-
     m_active = arg;
     emit activeChanged(arg);
+
+    qDebug() << "Setting Active" << arg;
+    if (arg) { // Turning on
+        m_port = m_settings->getPort();
+        if (!m_port) {
+            m_active = false;
+            emit activeChanged(m_active);
+            return;
+        }
+
+    } else { // Turning off
+        if (m_port) {
+            m_port->close();
+        }
+        m_port = 0;
+    }
 }
 
 QString Terminal::text() const
@@ -91,7 +95,7 @@ void Terminal::updateInput()
 {
     if (!m_port || !m_port->isOpen() || !m_active) return;
 
-    if (m_port->bytesAvailable() > 0) {
+    if (!m_settings->programmerActive() && m_port->bytesAvailable() > 0) {
         // TODO: Do all the fancy hex, dec, stuff.
         m_text.append(m_port->readAll());
 
@@ -152,8 +156,10 @@ bool Terminal::openPort()
     m_port->open(QIODevice::ReadWrite);
 
     if (m_port->error() != QSerialPort::NoError) {
-        qDebug() << "Error Opening Port Terminal:" << m_port->error();
+        qDebug() << "Error Opening Port Terminal:" << m_port->error() << m_port->errorString();
         return false;
+    } else {
+        qDebug() << "Opened Port:" << m_port->errorString();
     }
     return true;
 }

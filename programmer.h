@@ -11,7 +11,8 @@ class Worker;
 class Programmer : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool isProgramming READ isProgramming WRITE setIsProgramming NOTIFY isProgrammingChanged)
+
+    Q_PROPERTY(bool isProgramming READ isProgramming NOTIFY isProgrammingChanged)
     Q_PROPERTY(qreal progress READ progress WRITE setProgress NOTIFY progressChanged)
     Q_PROPERTY(Status status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
@@ -29,15 +30,15 @@ public:
 
     explicit Programmer(QObject *parent = 0);
 
-    Q_INVOKABLE void stopProgramming();
-//    Q_INVOKABLE void resetMicro(Settings *settings);
+    Q_INVOKABLE void programMicro(Settings *settings);
+    Q_INVOKABLE void resetMicro(Settings *settings);
 
 //    bool startProgramMode(QSerialPort *port, Settings *settings);
 //    bool sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings);
 //    bool loadHexFile(QUrl fileUrl, QByteArray *data, int *startAddress, int *endAddress, Settings *settings);
     
     bool isProgramming() const;
-    void setIsProgramming(bool arg);
+    void setIsProgramming(bool arg, Settings *settings=0);
 
     qreal progress() const;
     void setProgress(qreal arg);
@@ -62,7 +63,7 @@ public:
     void setLastAddress(int arg);
 
 signals:
-    void programMicro(Settings *settings);
+    void startProgramming(Settings *settings, QSerialPort *port);
 
     void isProgrammingChanged(bool arg);
     void progressChanged(qreal arg);
@@ -72,13 +73,16 @@ signals:
     void resendsChanged(int arg);
 
     void currentAddressChanged(int arg);
-
     void portChanged(QSerialPort *arg);
-
     void lastAddressChanged(int arg);
 
+    void portOpened(QSerialPort *port);
+    void portClosed();
 
 public slots:
+    void stopProgramming();
+    QSerialPort *openPort(Settings *settings);
+    void closePort();
 
 private:
     bool m_isProgramming;
@@ -93,6 +97,7 @@ private:
 
     Worker *m_worker;
     QThread m_workerThread;
+    QSerialPort *m_port;
 };
 
 class Worker: public QObject
@@ -106,11 +111,12 @@ public:
     void setStatus(Programmer::Status status, QString statusText=QString());
     void setProgress(int current, int total, qreal progress);
 
-    bool openPort(QSerialPort *port);
+signals:
+    void closePort();
+
 public slots:
-    void kayGo(Settings *settings);
+    void kayGo(Settings *settings, QSerialPort *port);
     void programMicro(Settings *settings, QSerialPort *port);
-    void resetMicro(Settings *settings);
 
     bool startProgramMode(QSerialPort *port, Settings *settings);
     bool sendProgram(QSerialPort *port, const QByteArray &fileBuffer, int startAddress, int endAddress, Settings *settings);

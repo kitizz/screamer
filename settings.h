@@ -11,6 +11,7 @@
 class Settings : public QObject
 {
     Q_OBJECT
+
     Q_PROPERTY(QUrl settingsFile READ settingsFile WRITE setSettingsFile NOTIFY settingsFileChanged)
 
     Q_PROPERTY(QString log READ log NOTIFY logChanged)
@@ -38,12 +39,15 @@ class Settings : public QObject
     Q_PROPERTY(QUrl hexFile READ hexFile WRITE setHexFile NOTIFY hexFileChanged)
     Q_PROPERTY(QStringList hexFiles READ hexFiles WRITE setHexFiles NOTIFY hexFilesChanged)
 
+    Q_PROPERTY(bool programmerActive READ programmerActive WRITE setProgrammerActive NOTIFY programmerActiveChanged)
+    Q_PROPERTY(bool terminalActive READ terminalActive WRITE setTerminalActive NOTIFY terminalActiveChanged)
+
     Q_ENUMS(Chip TerminalCharacters ResetType)
 
 public:
     enum Chip { Atmega168=0, Atmega328=1, Atmega32u4=2 };
     enum TerminalCharacters { Ascii=0, Hex=1, Dec=2 };
-    enum ResetType { RTS=0, DTR=1};
+    enum ResetType { RTS=0, DTR=1, Software=2 };
 
     explicit Settings(QObject *parent = 0);
 
@@ -104,14 +108,21 @@ public:
     ResetType resetType() const;
     void setResetType(ResetType arg);
 
-    QSerialPort *selectedPort() const;
-    void setSelectedPort(QSerialPort *arg);
+    QSerialPort *getPort();
+//    void setSelectedPort(QSerialPort *arg);
 
-    Q_INVOKABLE void setupPort(QSerialPort *portName);
-    Q_INVOKABLE void getPortFromName(QString portName);
+
+    Q_INVOKABLE QString printPortInfo();
 
     QStringList availablePorts() const;
     QString log() const;
+    Q_INVOKABLE void clearLog();
+    bool programmerActive() const;
+    void setProgrammerActive(bool arg);
+
+    bool terminalActive() const;
+    void setTerminalActive(bool arg);
+
 signals:
     void changed();
 
@@ -141,9 +152,14 @@ signals:
 
     void logChanged();
 
+    void programmerActiveChanged(bool arg);
+
+    void terminalActiveChanged(bool arg);
+
 public slots:
     Q_INVOKABLE void save();
     Q_INVOKABLE void updatePorts();
+    bool updatePort();
 
 private:
     bool m_saving;
@@ -151,7 +167,7 @@ private:
     QUrl m_settingsFile;
     QString m_log;
     
-    QString m_port;
+    QString m_portName;
     QSerialPort::BaudRate m_baudProgram;
     int m_frequency;
     Chip m_chip;
@@ -167,8 +183,10 @@ private:
     QStringList m_hexFiles;
     QUrl m_hexFile;
     ResetType m_resetType;
-    QSerialPort * m_selectedPort;
+    QSerialPort * m_port;
     QStringList m_availablePorts;
+    bool m_programmerActive;
+    bool m_terminalActive;
 };
 
 #endif // SETTINGS_H

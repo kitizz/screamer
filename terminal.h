@@ -9,7 +9,8 @@
 class Terminal : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QSerialPort *port READ port WRITE setPort NOTIFY portChanged)
+
+//    Q_PROPERTY(QSerialPort *port READ port WRITE setPort NOTIFY portChanged)
     Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)
     Q_PROPERTY(Settings *settings READ settings WRITE setsettings NOTIFY settingsChanged)
